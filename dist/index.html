@@ -1,0 +1,175 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="./output.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+  <style>
+    /* Ensure the canvas is not scaled by CSS */
+    canvas {
+      display: block;
+    }
+  </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+  <!-- Main Container -->
+  <div class="flex flex-col border-solid border-2 shadow-lg px-8 py-6 rounded-2xl bg-white">
+    <!-- Control Panel -->
+    <div class="flex flex-row font-bold justify-evenly mb-4">
+      <div>
+        <p class="mb-2 text-gray-600">Color Picker</p>
+        <input id="colorpicker" type="color" class="appearance-none rounded-full w-12 h-12">
+      </div>
+      <div>
+        <p class="mb-2 text-gray-600">Background Color</p>
+        <input id="canvascolor" type="color" class="w-12 h-12 rounded-full border border-black border-opacity-10 bg-white">
+      </div>
+      <div>
+        <p class="mb-2 text-gray-600">Size</p>
+        <select name="size" id="fontpicker" class="bg-slate-50 border border-black border-2 rounded-lg px-2 py-1">
+          <option value="5">5px</option>
+          <option value="10">10px</option>
+          <option value="20">20px</option>
+          <option value="30">30px</option>
+          <option value="40">40px</option>
+        </select> 
+      </div>
+    </div>
+    
+    <!-- Canvas -->
+    <canvas id="canvas" class="border-solid border-2 border-black my-2 rounded-xl" width="800" height="500"></canvas>
+
+    <!-- Action Buttons -->
+    <div class="flex justify-evenly my-2">
+      <button type="button" class="btn btn-danger" id="clear">Clear</button>
+      <button type="button" class="btn btn-success" id="save">Save and Exit</button>
+      <button type="button" class="btn btn-warning" id="undo">Undo Changes</button>
+    </div>
+  </div>
+  
+  <script>
+    // Get Elements
+    const colorpicker = document.getElementById("colorpicker");
+    const canvascolor = document.getElementById("canvascolor");
+    const canvas = document.getElementById("canvas");
+    const clear = document.getElementById("clear");
+    const save = document.getElementById("save");
+    const fontpicker = document.getElementById("fontpicker");
+    const undo = document.getElementById("undo");
+
+    // Setup Canvas for High-DPI Displays (Optional but Recommended)
+    function setupCanvas(canvas) {
+      const ctx = canvas.getContext('2d');
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.scale(dpr, dpr);
+      return ctx;
+    }
+
+    const ctx = setupCanvas(canvas);
+    let isDrawing = false;
+    let lastX = 0;
+    let lastY = 0;
+
+    // Set default styles
+    ctx.strokeStyle = colorpicker.value;
+    ctx.lineWidth = fontpicker.value;
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+
+    // Function to get accurate mouse position
+    function getMousePos(evt) {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      return {
+        x: (evt.clientX - rect.left) * scaleX,
+        y: (evt.clientY - rect.top) * scaleY
+      };
+    }
+
+    // Set stroke color
+    colorpicker.addEventListener('change', (e) => {
+      ctx.strokeStyle = e.target.value;
+    });
+
+    // Set background color
+    canvascolor.addEventListener('change', (e) => {
+      ctx.fillStyle = e.target.value;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    });
+
+    // Set line width
+    fontpicker.addEventListener('change', (e) => {
+      ctx.lineWidth = e.target.value;
+    });
+
+    // Handle drawing on the canvas
+    canvas.addEventListener('mousedown', (e) => {
+      isDrawing = true;
+      const pos = getMousePos(e);
+      lastX = pos.x;
+      lastY = pos.y;
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+      if (!isDrawing) return;
+      const pos = getMousePos(e);
+      ctx.beginPath();
+      ctx.moveTo(lastX / (window.devicePixelRatio || 1), lastY / (window.devicePixelRatio || 1));
+      ctx.lineTo(pos.x / (window.devicePixelRatio || 1), pos.y / (window.devicePixelRatio || 1));
+      ctx.stroke();
+      lastX = pos.x;
+      lastY = pos.y;
+    });
+
+    canvas.addEventListener('mouseup', () => {
+      isDrawing = false;
+    });
+
+    canvas.addEventListener('mouseout', () => {
+      isDrawing = false;
+    });
+
+    // Clear canvas
+    clear.addEventListener('click', () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      // Optionally reset background color
+      ctx.fillStyle = canvascolor.value;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    });
+
+    // Save canvas as image
+    save.addEventListener('click', () => {
+      localStorage.setItem('canvasContents', canvas.toDataURL());
+      let link = document.createElement('a');
+      link.download = 'my-canvas.png';
+      link.href = canvas.toDataURL();
+      link.click();
+    });
+
+    // Undo changes by restoring the saved canvas image
+    undo.addEventListener('click', () => {
+      let savedCanvas = localStorage.getItem('canvasContents');
+      if (savedCanvas) {
+        let img = new Image();
+        img.src = savedCanvas;
+        img.onload = () => {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        };
+      }
+    });
+
+    // Initialize canvas background color
+    window.onload = () => {
+      ctx.fillStyle = canvascolor.value;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    };
+  </script>
+</body>
+</html>
